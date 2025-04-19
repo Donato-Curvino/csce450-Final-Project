@@ -244,7 +244,7 @@ void ShapeSkin::draw(int k) const {
 	GLSL::checkError(GET_FILE_LINE);
 }
 
-void ShapeSkin::makeCylinder(unsigned int resolution) {
+void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsigned int radius) {
     unsigned int rows = resolution;
     unsigned int cols = resolution;
     posBuf.resize((rows + 1) * (cols + 1) * 3);
@@ -259,9 +259,9 @@ void ShapeSkin::makeCylinder(unsigned int resolution) {
             int i = y * (rows + 1) + x;
             float theta = 2.0f * x * (float)M_PI / cols;
             pos_vecs[i] = {
-                -glm::cos(theta),
-                -.5f + (float)y / rows,
-                glm::sin(theta)
+                radius * -glm::cos(theta),
+                height * (float)y / rows,
+                radius * glm::sin(theta)
             };
             nor_vecs[i] = glm::normalize(pos_vecs[i] - glm::vec3(0.f, pos_vecs[i].y, 0.f));
             tex_vecs[i] = {
@@ -271,7 +271,7 @@ void ShapeSkin::makeCylinder(unsigned int resolution) {
             if (x < cols && y < rows) {
                 int ind = 6 * (y * rows + x);
                 elemBuf[ind    ] = elemBuf[ind + 3] = i;
-                elemBuf[ind + 2] = elemBuf[ind + 4] = i + cols * 2;
+                elemBuf[ind + 2] = elemBuf[ind + 4] = i + cols + 2;
                 elemBuf[ind + 1] = i + 1;
                 elemBuf[ind + 5] = i + cols + 1;
             }
@@ -280,8 +280,8 @@ void ShapeSkin::makeCylinder(unsigned int resolution) {
 
     // create skeleton
     skel.bones.push_back(glm::mat2x4(
-        glm::vec4(0.f, -0.5f, 0.f, 0.f),
-        glm::vec4(0.f,  0.5f, 0.f, 0.f)
+        glm::vec4(0.f, 0.f, 0.f, 0.f),
+        glm::vec4(0.f, (float)height, 0.f, 0.f)
     ));
 
     // calculate u for each vertex

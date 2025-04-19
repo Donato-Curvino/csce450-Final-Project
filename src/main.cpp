@@ -63,7 +63,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 }
 
 void init() {
-    keyToggles[(unsigned)'c'] = true;
+    // keyToggles[(unsigned)'c'] = true;
 
     camera = make_shared<Camera>();
 
@@ -110,7 +110,7 @@ void init() {
     prog->unbind();
 
     // Generate cylinder
-    cylinder.makeCylinder(20);
+    cylinder.makeCylinder(20, 50, 10);
     cylinder.init();
 
     glfwSetTime(0.);

@@ -55,7 +55,7 @@ class ShapeSkin {
 
     // void setSkeleton(Skeleton* sk) { skel = sk; }
 
-    void makeCylinder(unsigned int resolution);
+    void makeCylinder(unsigned int resolution, unsigned int height = 1, unsigned int radius = 1);
     void calcSplinePos();
 };
 
