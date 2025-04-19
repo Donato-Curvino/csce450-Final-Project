@@ -133,8 +133,7 @@ void ShapeSkin::loadAttachment(const std::string &filename)
     }
 }
 
-void ShapeSkin::init()
-{
+void ShapeSkin::init() {
 	// Send the position array to the GPU
 	glGenBuffers(1, &posBufID);
 	glBindBuffer(GL_ARRAY_BUFFER, posBufID);
@@ -154,6 +153,11 @@ void ShapeSkin::init()
 	glGenBuffers(1, &elemBufID);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elemBufID);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, elemBuf.size()*sizeof(unsigned int), &elemBuf[0], GL_STATIC_DRAW);
+
+    // send u array to GPU
+    glGenBuffers(1, &uBufID);
+    glBindBuffer(GL_ARRAY_BUFFER, uBufID);
+    glBufferData(GL_ARRAY_BUFFER, uBuf.size() * sizeof(float), &uBuf[0], GL_STATIC_DRAW);
 	
 	// Unbind the arrays
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -170,10 +174,10 @@ void ShapeSkin::update(int k)
 	// init() function.
     std::vector<glm::vec3> newPos(posBuf.size() / 3);
     std::vector<glm::vec3> newNor(norBuf.size() / 3);
-    std::vector<glm::mat4> Mk(skel->numBones());
+    std::vector<glm::mat4> Mk(skel.numBones());
     // for (glm::mat4 M : skel->frames[k]) {
-    for (unsigned int j = 0; j < skel->frames[k].size(); j++)
-        Mk[j] = skel->frames[k][j] * glm::inverse(skel->frames[0][j]);
+    for (unsigned int j = 0; j < skel.frames[k].size(); j++)
+        Mk[j] = skel.frames[k][j] * glm::inverse(skel.frames[0][j]);
     // std::cout << glm::to_string(Mk[0]) << std::endl;
 
     for (unsigned int i = 0; i < posBuf.size() / 3; i++) {
@@ -192,12 +196,11 @@ void ShapeSkin::update(int k)
 	GLSL::checkError(GET_FILE_LINE);
 }
 
-void ShapeSkin::draw(int k) const
-{
+void ShapeSkin::draw(int k) const {
 	assert(prog);
 
 	// Send texture matrix
-	glUniformMatrix3fv(prog->getUniform("T"), 1, GL_FALSE, glm::value_ptr(T->getMatrix()));
+    // glUniformMatrix3fv(prog->getUniform("T"), 1, GL_FALSE, glm::value_ptr(T->getMatrix()));
 	
 	int h_pos = prog->getAttribute("aPos");
 	glEnableVertexAttribArray(h_pos);
@@ -213,6 +216,21 @@ void ShapeSkin::draw(int k) const
 	glEnableVertexAttribArray(h_tex);
 	glBindBuffer(GL_ARRAY_BUFFER, texBufID);
 	glVertexAttribPointer(h_tex, 2, GL_FLOAT, GL_FALSE, 0, (const void *)0);
+
+    int h_u = prog->getAttribute("u");
+    glEnableVertexAttribArray(h_u);
+    glBindBuffer(GL_ARRAY_BUFFER, uBufID);
+    glVertexAttribPointer(h_u, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    glUniformMatrix4fv(prog->getUniform("B"), 1, GL_FALSE, (float*)&skel.spline_basis);
+    glUniformMatrix2x4fv(prog->getUniform("bone"), 1, GL_FALSE, (float*)&skel.bones[0]);
+    glm::mat4x3 G = {
+        glm::vec3(skel.bones[0][0]),
+        glm::vec3(skel.bones[0][0]),
+        glm::vec3(skel.bones[0][1]),
+        glm::vec3(skel.bones[0][1])
+    };
+    glUniformMatrix4x3fv(prog->getUniform("G"), 1, GL_FALSE, &G[0][0]);
 	
 	// Draw
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elemBufID);
@@ -242,7 +260,7 @@ void ShapeSkin::makeCylinder(unsigned int resolution) {
             float theta = 2.0f * x * (float)M_PI / cols;
             pos_vecs[i] = {
                 -glm::cos(theta),
-                -.5f * (float)y / rows,
+                -.5f + (float)y / rows,
                 glm::sin(theta)
             };
             nor_vecs[i] = glm::normalize(pos_vecs[i] - glm::vec3(0.f, pos_vecs[i].y, 0.f));
@@ -258,6 +276,21 @@ void ShapeSkin::makeCylinder(unsigned int resolution) {
                 elemBuf[ind + 5] = i + cols + 1;
             }
         }
+    }
+
+    // create skeleton
+    skel.bones.push_back(glm::mat2x4(
+        glm::vec4(0.f, -0.5f, 0.f, 0.f),
+        glm::vec4(0.f,  0.5f, 0.f, 0.f)
+    ));
+
+    // calculate u for each vertex
+    glm::vec3 bone_vec = skel.bones[0][1] - skel.bones[0][0];
+    unsigned int nverts = (rows + 1) * (cols + 1);
+    uBuf.resize(nverts);
+    for (unsigned int i = 0; i < nverts; i++) {
+        glm::vec3 a = pos_vecs[i] - glm::vec3(skel.bones[0][0]);
+        uBuf[i] = glm::dot(a, glm::normalize(bone_vec));
     }
 }
 

@@ -76,27 +76,28 @@ void init() {
     prog_simple = make_shared<Program>();
     prog_simple->setShaderNames(RESOURCE_DIR + "simple_vert.glsl", RESOURCE_DIR + "simple_frag.glsl");
     prog_simple->setVerbose(true);
-
-    prog_simple->addUniform("P");
+    prog_simple->init();
     prog_simple->addUniform("MV");
+    prog_simple->addUniform("P");
 
     prog = make_shared<Program>();
-    prog->setShaderNames(RESOURCE_DIR + "vert.glsl", RESOURCE_DIR + "frag.glsl");
     prog->setVerbose(true);
+    prog->setShaderNames(RESOURCE_DIR + "vert.glsl", RESOURCE_DIR + "frag.glsl");
     prog->init();
 
     prog->addAttribute("aPos");
     prog->addAttribute("aNor");
     prog->addAttribute("aTex");
     prog->addAttribute("u");
-    prog->addAttribute("bw");
-    prog->addAttribute("bi");
+    // prog->addAttribute("bw");
+    // prog->addAttribute("bi");
     prog->addUniform("P");
     prog->addUniform("MV");
-    prog->addUniform("bones");
-    prog->addUniform("Gs");
+    prog->addUniform("G");
     prog->addUniform("B");
-    prog->addUniform("ligntPos");
+    prog->addUniform("bone");
+
+    prog->addUniform("lightPos");
     prog->addUniform("ka");
     prog->addUniform("ks");
     prog->addUniform("s");
@@ -187,6 +188,7 @@ void render() {
     glUniform3f(prog->getUniform("ka"), 0.1f, 0.1f, 0.1f);
     glUniform3f(prog->getUniform("ks"), 0.1f, 0.1f, 0.1f);
     glUniform1f(prog->getUniform("s"), 200.0f);
+    glUniform3f(prog->getUniform("lightPos"), 1, 1, -1);
     cylinder.setProgram(prog);
     cylinder.draw(0);
     prog->unbind();

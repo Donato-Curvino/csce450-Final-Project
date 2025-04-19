@@ -33,7 +33,7 @@ class ShapeSkin {
     std::string textureFilename;
     std::shared_ptr<TextureMatrix> T;
 
-    Skeleton* skel;
+    Skeleton skel;
     std::vector<glm::ivec4> bone_indicies;
     std::vector<glm::vec4>  weights;
 
@@ -53,7 +53,7 @@ class ShapeSkin {
 	std::string getTextureFilename() const { return textureFilename; }
 	std::shared_ptr<TextureMatrix> getTextureMatrix() { return T; }
 
-    void setSkeleton(Skeleton* sk) { skel = sk; }
+    // void setSkeleton(Skeleton* sk) { skel = sk; }
 
     void makeCylinder(unsigned int resolution);
     void calcSplinePos();
