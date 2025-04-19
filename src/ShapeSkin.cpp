@@ -290,7 +290,7 @@ void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsig
     uBuf.resize(nverts);
     for (unsigned int i = 0; i < nverts; i++) {
         glm::vec3 a = pos_vecs[i] - glm::vec3(skel.bones[0][0]);
-        uBuf[i] = glm::dot(a, glm::normalize(bone_vec));
+        uBuf[i] = glm::dot(a, glm::normalize(bone_vec)) / glm::length(bone_vec);
     }
 }
 
