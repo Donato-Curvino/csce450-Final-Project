@@ -12,6 +12,7 @@
 #include <glm/mat4x4.hpp>
 
 #include "Skeleton.h"
+#include "spline.h"
 
 class MatrixStack;
 class Program;
@@ -32,10 +33,12 @@ class ShapeSkin {
     GLuint uBufID;
     std::string textureFilename;
     std::shared_ptr<TextureMatrix> T;
+    std::vector<glm::vec3> points;
 
     Skeleton skel;
     std::vector<glm::ivec4> bone_indicies;
     std::vector<glm::vec4>  weights;
+    std::vector<glm::vec3> bindings;
 
   public:
 	ShapeSkin();
@@ -57,6 +60,9 @@ class ShapeSkin {
 
     void makeCylinder(unsigned int resolution, unsigned int height = 1, unsigned int radius = 1);
     void calcSplinePos();
+
+    const Spline& getSpline(unsigned int i) const { return skel.splines[i]; }
+    void exportMesh(const std::string& filename);
 };
 
 #endif
