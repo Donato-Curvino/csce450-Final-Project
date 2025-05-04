@@ -37,9 +37,20 @@ void main() {
     // vec3 p_2    = vec3(GB * uVec_2);
 
     vec3 tan = (p_ == vec3(0)) ? vec3(1, 0, 0) : normalize(p_);
-    vec3 bnorm = (!(tan.x != 0 || tan.z != 0))
-        ? normalize(vec3(-tan.y, tan.x, 0))
-        : normalize(vec3(-tan.z, 0, tan.x));
+    // vec3 bnorm = (tan.x == 0 && tan.z == 0)
+    //     ? normalize(vec3(-tan.y, tan.x, 0))
+    //     : normalize(vec3(-tan.z, 0, tan.x));
+    vec3 bnorm;
+    if (tan.x == 0 && tan.z == 0) {
+        if (u <= 0.5) {
+            bnorm = normalize(cross(G[2] - G[1], G[1] - G[0]));
+        } else {
+            bnorm = normalize(cross(G[3] - G[2], G[2] - G[1]));
+        }
+    } else {
+        bnorm = normalize(vec3(-tan.z, 0, tan.x));
+    }
+
     vec3 norm  = normalize(cross(bnorm, tan));
 
     mat4 basis = mat4(vec4(norm, 0), vec4(bnorm, 0), vec4(tan, 0), origin);
