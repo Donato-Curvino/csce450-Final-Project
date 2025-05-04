@@ -10,10 +10,20 @@
 #include "Program.h"
 #include "MatrixStack.h"
 #include "ShapeSkin.h"
+#include "spline.h"
+
+#ifndef NDEBUG
+    #define GL_ERR GLSL::checkError(GET_FILE_LINE);
+#else
+    #define GL_ERR ;
+#endif
+
 
 using namespace std;
 
 GLFWwindow* window;
+GLuint gridID;
+GLuint gridVAO;
 string RESOURCE_DIR = "";
 bool keyToggles[256] = {false};
 
@@ -23,6 +33,8 @@ shared_ptr<Program> prog_simple;
 ShapeSkin cylinder;
 double t;
 double t0;
+
+Spline spline;
 
 static void error_callback(int error, const char *description) {
     std::cerr << description << std::endl;
@@ -77,8 +89,20 @@ void init() {
     prog_simple->setShaderNames(RESOURCE_DIR + "simple_vert.glsl", RESOURCE_DIR + "simple_frag.glsl");
     prog_simple->setVerbose(true);
     prog_simple->init();
+    prog_simple->addAttribute("vertex");
     prog_simple->addUniform("MV");
     prog_simple->addUniform("P");
+
+    GLint vtx = prog_simple->getAttribute("vertex");
+    // Generate Vertex Array Object
+    glGenVertexArrays(1, &gridVAO);                                 GL_ERR;
+    glBindVertexArray(gridVAO);                                     GL_ERR;
+    // Data Allocation
+    glGenBuffers(1, &gridID);                                       GL_ERR;
+    glBindBuffer(GL_ARRAY_BUFFER, gridID);                          GL_ERR;
+    glVertexAttribPointer(vtx, 3, GL_FLOAT, GL_FALSE, 0, nullptr);  GL_ERR;
+    glEnableVertexAttribArray(vtx);                                 GL_ERR;
+    glBindVertexArray(0);                                           GL_ERR;
 
     prog = make_shared<Program>();
     prog->setVerbose(true);
@@ -87,7 +111,7 @@ void init() {
 
     prog->addAttribute("aPos");
     prog->addAttribute("aNor");
-    prog->addAttribute("aTex");
+    // prog->addAttribute("aTex");
     prog->addAttribute("u");
     // prog->addAttribute("bw");
     // prog->addAttribute("bi");
@@ -101,13 +125,14 @@ void init() {
     prog->addUniform("ka");
     prog->addUniform("ks");
     prog->addUniform("s");
-    prog->addUniform("kdTex");
+    // prog->addUniform("kdTex");
+    prog->addUniform("kd");
 
     // Bind the texture to unit 1.
-    int unit = 1;
-    prog->bind();
-    glUniform1i(prog->getUniform("kdTex"), unit);
-    prog->unbind();
+    // int unit = 1;
+    // prog->bind();
+    // glUniform1i(prog->getUniform("kdTex"), unit);
+    // prog->unbind();
 
     // Generate cylinder
     cylinder.makeCylinder(20, 50, 10);
@@ -157,43 +182,56 @@ void render() {
     camera->applyViewMatrix(MV);
 
     // Draw grid
+    static vector<glm::vec3> grid;
     prog_simple->bind();
     glUniformMatrix4fv(prog_simple->getUniform("P"),  1, GL_FALSE, (float*)&P->topMatrix());
     glUniformMatrix4fv(prog_simple->getUniform("MV"), 1, GL_FALSE, (float*)&MV->topMatrix());
     float gridSizeHalf = 200.0f;
     int gridNx = 11;
     int gridNz = 11;
-    glLineWidth(1);
-    glColor3f(0.8f, 0.8f, 0.8f);
-    glBegin(GL_LINES);
+    grid.clear();
+    grid.reserve(gridNx * gridNz);
     for(int i = 0; i < gridNx; ++i) {
         float alpha = i / (gridNx - 1.0f);
         float x = (1.0f - alpha) * (-gridSizeHalf) + alpha * gridSizeHalf;
-        glVertex3f(x, 0, -gridSizeHalf);
-        glVertex3f(x, 0,  gridSizeHalf);
+        grid.emplace_back(x, 0, -gridSizeHalf);
+        grid.emplace_back(x, 0,  gridSizeHalf);
     }
     for(int i = 0; i < gridNz; ++i) {
         float alpha = i / (gridNz - 1.0f);
         float z = (1.0f - alpha) * (-gridSizeHalf) + alpha * gridSizeHalf;
-        glVertex3f(-gridSizeHalf, 0, z);
-        glVertex3f( gridSizeHalf, 0, z);
+        grid.emplace_back(-gridSizeHalf, 0, z);
+        grid.emplace_back( gridSizeHalf, 0, z);
     }
-    glEnd();
+    int vtx = prog_simple->getAttribute("vertex");
+    glEnableVertexAttribArray(vtx);                                     GL_ERR;
+    glBindBuffer(GL_ARRAY_BUFFER, gridID);                              GL_ERR;
+    glBufferData(GL_ARRAY_BUFFER, grid.size() * 3 * sizeof(float), grid.data(), GL_STATIC_DRAW);    GL_ERR;
+    glBindVertexArray(gridVAO);                                         GL_ERR;
+    glVertexAttribPointer(vtx, 3, GL_FLOAT, GL_FALSE, 0, nullptr);      GL_ERR;
+    glDrawArrays(GL_LINES, 0, grid.size());                             GL_ERR;
+    glBindBuffer(GL_ARRAY_BUFFER, 0);                                   GL_ERR;
+    glDisableVertexAttribArray(vtx);                                    GL_ERR;
     prog_simple->unbind();
 
     prog->bind();
-    glLineWidth(1.0f); // for wireframe
-    glUniformMatrix4fv(prog->getUniform("P"),  1, GL_FALSE, (float*)&P->topMatrix());
-    glUniformMatrix4fv(prog->getUniform("MV"), 1, GL_FALSE, (float*)&MV->topMatrix());
-    glUniform3f(prog->getUniform("ka"), 0.1f, 0.1f, 0.1f);
-    glUniform3f(prog->getUniform("ks"), 0.1f, 0.1f, 0.1f);
-    glUniform1f(prog->getUniform("s"), 200.0f);
-    glUniform3f(prog->getUniform("lightPos"), 1, 1, -1);
+    // glLineWidth(1.0f); // for wireframe
+    glUniformMatrix4fv(prog->getUniform("P"),  1, GL_FALSE, (float*)&P->topMatrix());   GL_ERR;
+    glUniformMatrix4fv(prog->getUniform("MV"), 1, GL_FALSE, (float*)&MV->topMatrix());  GL_ERR;
+    glUniform3f(prog->getUniform("ka"), 0.1f, 0.1f, 0.1f);                              GL_ERR;
+    glUniform3f(prog->getUniform("ks"), 0.1f, 0.1f, 0.1f);                              GL_ERR;
+    glUniform4f(prog->getUniform("kd"), 0.0f, 0.0f, 0.3f, 1.0f);                        GL_ERR;
+    glUniform1f(prog->getUniform("s"), 200.0f);                                         GL_ERR;
+    glUniform3f(prog->getUniform("lightPos"), 1, 1, -1);                                GL_ERR;
     cylinder.setProgram(prog);
     cylinder.draw(0);
     prog->unbind();
 
-
+    prog_simple->bind();
+    glClear(GL_DEPTH_BUFFER_BIT);
+    // cylinder.getSpline(0).draw();
+    prog_simple->unbind();
+    GLSL::checkError(GET_FILE_LINE);
 }
 
 int main(int argc, char** argv) {
@@ -207,6 +245,10 @@ int main(int argc, char** argv) {
     if (!glfwInit())
         return -1;
 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    GLSL::checkError(GET_FILE_LINE);
     window = glfwCreateWindow(640, 480, "Donato Curvino", NULL, NULL);
     if (!window) {
         glfwTerminate();
