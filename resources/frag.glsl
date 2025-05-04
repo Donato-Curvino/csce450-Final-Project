@@ -8,14 +8,16 @@ uniform vec3 lightPos; // in camera space
 uniform vec3 ka;
 uniform vec3 ks;
 uniform float s;
-uniform sampler2D kdTex;
+// uniform sampler2D kdTex;
+uniform vec4 kd;
 
 void main() {
     vec3 n = normalize(vNor);
     vec3 l = normalize(lightPos - vPos);
     vec3 v = -normalize(vPos);
     vec3 h = normalize(l + v);
-    vec4 colorT = texture2D(kdTex, vTex.st).rgba;
+    // vec4 colorT = texture2D(kdTex, vTex.st).rgba;
+    vec4 colorT = kd;
     vec3 colorA = ka;
     vec3 colorD = max(dot(l, n), 0.0) * colorT.rgb;
     vec3 colorS = pow(max(dot(h, n), 0.0), s) * ks;

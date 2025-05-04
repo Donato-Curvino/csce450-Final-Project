@@ -1,6 +1,6 @@
 #version 120
 
-attribute vec4 aPos;
+attribute vec3 aPos;
 attribute vec3 aNor;
 attribute vec2 aTex;
 // attribute vec4 u;
@@ -25,22 +25,21 @@ void main() {
     // vec4 posCam = MV * aPos;
     vec4 uVec   = vec4(1, u, u*u, u*u*u);
     vec4 uVec_  = vec4(0, 1, 2*u, 3*u*u);
-    vec4 uVec_2 = vec4(0, 0,   2,   6*u);
-
-    // vec4 sum = 0;
-    // for (int i = 0; i < 4; i++) {
-    //     vec4 sPos = Gs[i] * B * uVec;
-    //     sum += bw[i] * sPos;
-    // }
+    // vec4 uVec_2 = vec4(0, 0,   2,   6*u);
 
     // compute spline basis
     mat4 GB = mat4(G * B);
     vec4 origin = GB * uVec;
-    vec3 p_     = vec3(GB * uVec_);
-    vec3 p_2    = vec3(GB * uVec_2);
+    origin.w = 1;
+    vec3 p_     = vec4(GB * uVec_).xyz;
+    // if (!(p_.x == 0 || p_.z == 0))
+    //     p_ += vec3(GB * (1e-15 * uVec_));
+    // vec3 p_2    = vec3(GB * uVec_2);
 
-    vec3 tan   = normalize(p_);
-    vec3 bnorm = normalize(cross(p_, p_2));
+    vec3 tan = (p_ == vec3(0)) ? vec3(1, 0, 0) : normalize(p_);
+    vec3 bnorm = (!(tan.x != 0 || tan.z != 0))
+        ? normalize(vec3(-tan.y, tan.x, 0))
+        : normalize(vec3(-tan.z, 0, tan.x));
     vec3 norm  = normalize(cross(bnorm, tan));
 
     mat4 basis = mat4(vec4(norm, 0), vec4(bnorm, 0), vec4(tan, 0), origin);
@@ -48,20 +47,28 @@ void main() {
     // need original basis
     // can precalculate at bone base and translate by u
     // vec4 pos_og = (1 - u) * bone[0] + u * bone[1];
-    vec4 pos_og   = bone * vec2(1 - u, u);
-    // vec4 tan_og   = normalize(bone[1] - bone[0]);
-    // vec4 norm_og  = normalize(cross(tan_og, vec4(0, 1, 0, 0)));
-    // vec4 bnorm_og = normalize(cross(tan_og, norm_og));
-    // mat4 basis_og = mat4(norm_og, bnorm_og, tan_og, pos_og);
+    // vec4 pos_og   = bone * vec2(1 - u, u);
+    // vec3 tan_og   = normalize(vec3(bone[1]) - vec3(bone[0]));
+    // vec3 bnorm_og = (!(tan_og.x != 0 || tan_og.z != 0))
+    //     ? normalize(vec3(-tan_og.y, tan_og.x, 0))
+    //     : normalize(vec3(-tan_og.z, 0, tan_og.x));
+    // vec3 norm_og = normalize(cross(bnorm_og, tan_og));
+    // mat3 basis_og_T = transpose(mat3(norm_og, bnorm_og, tan_og));
 
-    // TODO: may need to change
-    mat4 basis_og_inv = mat4(1);
-    basis_og_inv[3].xyz = -pos_og.xyz;
-
-    vec4 pos = basis * basis_og_inv * aPos;
+    // // mat4 basis_og = mat4(vec4(norm_og, 0), vec4(bnorm_og, 0), vec4(tan_og, 0), vec4(pos_og, 1));
+    // mat4 basis_og_inv = mat4(
+    //     vec4(basis_og_T[0], 0),
+    //     vec4(basis_og_T[1], 0),
+    //     vec4(basis_og_T[2], 0),
+    //     pos_og
+    // );
+    vec4 pos = basis * vec4(aPos, 1);
+    // vec4 pos = basis * basis_og_inv * vec4(aPos, 1);
     vec4 posCam = MV * pos;
 
     gl_Position = P * posCam;
+    // gl_Position = pos;
+    // gl_Position = P * MV * aPos;
     vPos = posCam.xyz;
     vNor = vec3(MV * vec4(aNor, 0.0)).xyz;
     vTex = aTex;
