@@ -72,6 +72,6 @@ void main() {
     // gl_Position = pos;
     // gl_Position = P * MV * aPos;
     vPos = posCam.xyz;
-    vNor = vec3(MV * vec4(aNor, 0.0)).xyz;
+    vNor = vec3(basis * vec4(aNor, 0.0)).xyz;
     vTex = aTex;
 }

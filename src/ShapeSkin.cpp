@@ -146,7 +146,8 @@ void ShapeSkin::init() {
 	// Send the normal array to the GPU
 	glGenBuffers(1, &norBufID);
 	glBindBuffer(GL_ARRAY_BUFFER, norBufID);
-	glBufferData(GL_ARRAY_BUFFER, norBuf.size()*sizeof(float), &norBuf[0], GL_STATIC_DRAW);
+    // glBufferData(GL_ARRAY_BUFFER, norBuf.size()*sizeof(float), &norBuf[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, bind_norms.size() * sizeof(glm::vec3), &bind_norms[0], GL_STATIC_DRAW);
 	
 	// Send the texcoord array to the GPU
 	glGenBuffers(1, &texBufID);
@@ -295,28 +296,29 @@ void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsig
 
     points.resize(nverts);
     bindings.resize(nverts);
+    bind_norms.resize(nverts);
     for (unsigned i = 0; i < nverts; i++)  points[i] = pos_vecs[i];
     exportMesh("cylinder-og.obj");
 
     skel.splines.push_back(Spline());
-    skel.splines[0].cps = {
-        glm::vec3(-50, 0, -50),
-        glm::vec3(0, 0, 0),
-        glm::vec3(0, 50, 0),
-        glm::vec3(50, 50, 50)
-    };
     // skel.splines[0].cps = {
-    //     glm::vec3{-75, 0, 0},
-    //     glm::vec3{-75, 50, 0},
-    //     glm::vec3{-25, 50, 0},
-    //     glm::vec3{-25, 0, 0}
+    //     glm::vec3(-50, 0, -50),
+    //     glm::vec3(0, 0, 0),
+    //     glm::vec3(0, 50, 0),
+    //     glm::vec3(50, 50, 50)
     // };
+    skel.splines[0].cps = {
+        glm::vec3{50, 0, 0},
+        glm::vec3{50, 50, 0},
+        glm::vec3{0, 50, 0},
+        glm::vec3{0, 0, 0}
+    };
 
     // skel.splines[0].cps = {
-    //     glm::vec3(-1, -1, -1),
+    //     glm::vec3(skel.bones[0][0]),
     //     glm::vec3(skel.bones[0][0]),
     //     glm::vec3(skel.bones[0][1]),
-    //     glm::vec3(1, 1, 1)
+    //     glm::vec3(skel.bones[0][1])
     // };
     const glm::mat4& B =skel.splines[0].B;
     glm::mat2x4& bone = skel.bones[0];
@@ -391,6 +393,7 @@ void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsig
 
         // binding positions with respect to spline frame
         bindings[i] = vec3{basis_og_inv * vec4(pos_vecs[i], 1)};
+        bind_norms[i] = vec3{basis_og_inv * vec4(nor_vecs[i], 0)};
 
         vec4 pos = basis * vec4{bindings[i], 1};
         cyl_out << pos.x << ", " << pos.y << ", " << pos.z << std::endl;

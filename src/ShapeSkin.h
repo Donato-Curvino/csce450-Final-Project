@@ -39,6 +39,7 @@ class ShapeSkin {
     std::vector<glm::ivec4> bone_indicies;
     std::vector<glm::vec4>  weights;
     std::vector<glm::vec3> bindings;
+    std::vector<glm::vec3> bind_norms;
 
   public:
 	ShapeSkin();
