@@ -62,6 +62,17 @@ class ShapeSkin {
     void makeCylinder(unsigned int resolution, unsigned int height = 1, unsigned int radius = 1);
     void calcSplinePos();
 
+    /**
+     * @brief precalculates vertex positions in relation to the bind position
+     * multiplies each vertex by the inverse of the bind pose transform
+     */
+    void bindSkin();
+
+    /**
+     * @brief calculates spline deformation on the CPU
+     */
+    void splineDeform(const Spline& s);
+
     const Spline& getSpline(unsigned int i) const { return skel.splines[i]; }
     void exportMesh(const std::string& filename);
 };

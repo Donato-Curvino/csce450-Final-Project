@@ -231,7 +231,7 @@ void ShapeSkin::draw(int k) const {
     glUniformMatrix2x4fv(prog->getUniform("bone"), 1, GL_FALSE, (float*)&skel.bones[0]);
 
     // glUniformMatrix4x3fv(prog->getUniform("G"), 1, GL_FALSE, &G[0][0]);
-    glUniformMatrix4x3fv(prog->getUniform("G"), 1, GL_FALSE, (float*)skel.splines[0].cps.data());
+    glUniformMatrix4x3fv(prog->getUniform("G"), 1, GL_FALSE, (float*)&skel.splines[0].G[0][0]);
 	
 	// Draw
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elemBufID);
@@ -285,20 +285,9 @@ void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsig
         glm::vec4(0.f, (float)height, 0.f, 0.f)
     ));
 
-    // calculate u for each vertex
-    glm::vec3 bone_vec = skel.bones[0][1] - skel.bones[0][0];
-    unsigned int nverts = (rows + 1) * (cols + 1);
-    uBuf.resize(nverts);
-    for (unsigned int i = 0; i < nverts; i++) {
-        glm::vec3 a = pos_vecs[i] - glm::vec3(skel.bones[0][0]);
-        uBuf[i] = glm::dot(a, glm::normalize(bone_vec)) / glm::length(bone_vec);
-    }
-
-    points.resize(nverts);
-    bindings.resize(nverts);
-    bind_norms.resize(nverts);
-    for (unsigned i = 0; i < nverts; i++)  points[i] = pos_vecs[i];
-    exportMesh("cylinder-og.obj");
+    // points.resize(nverts);
+    // for (unsigned i = 0; i < nverts; i++)  points[i] = pos_vecs[i];
+    // exportMesh("cylinder-og.obj");
 
     skel.splines.push_back(Spline());
     // skel.splines[0].cps = {
@@ -307,7 +296,7 @@ void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsig
     //     glm::vec3(0, 50, 0),
     //     glm::vec3(50, 50, 50)
     // };
-    skel.splines[0].cps = {
+    skel.splines[0].G = {
         glm::vec3{50, 0, 0},
         glm::vec3{50, 50, 0},
         glm::vec3{0, 50, 0},
@@ -320,28 +309,75 @@ void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsig
     //     glm::vec3(skel.bones[0][1]),
     //     glm::vec3(skel.bones[0][1])
     // };
-    const glm::mat4& B =skel.splines[0].B;
-    glm::mat2x4& bone = skel.bones[0];
-    glm::mat4x3 G = {
-        skel.splines[0].cps[0],
-        skel.splines[0].cps[1],
-        skel.splines[0].cps[2],
-        skel.splines[0].cps[3],
-    };
-    mat4 GB = mat4(G * B);
-    std::cout << "G " << glm::to_string(G) << std::endl;
-    std::cout << "B " << glm::to_string(B) << std::endl;
-    std::cout << "G*B " << glm::to_string(GB) << std::endl;
-    // glm::vec3 error(1e-20f);
-    glm::mat4x3 G_og = {
-        skel.splines[0].cps[0],
-        skel.splines[0].cps[0],
-        skel.splines[0].cps[1],
-        skel.splines[0].cps[1]
-    };
+}
 
-    std::ofstream cyl_out("cylinder.csv");
-    std::ofstream aPos_out("aPos.csv");
+void ShapeSkin::calcSplinePos() {
+
+}
+
+void ShapeSkin::exportMesh(const std::string& filename) {
+    std::ofstream fout(filename, std::ios_base::out);
+    if (fout.fail())    std::cerr << "can't open" << std::endl;
+
+    for (size_t v = 0; v < points.size(); v ++)
+        fout << "v " << points[v].x << ' ' << points[v].y << ' ' << points[v].z << std::endl;
+
+    for (size_t f = 0; f < elemBuf.size() - 2; f += 3)
+        fout << "f " << (elemBuf[f] + 1) << ' ' << (elemBuf[f + 1] + 1) << ' ' << (elemBuf[f + 2] + 1) << std::endl;
+}
+
+void ShapeSkin::bindSkin() {
+    int nverts = posBuf.size() / 3;
+    uBuf.resize(nverts);
+    bindings.resize(nverts);
+    bind_norms.resize(nverts);
+    vec3* pos_vecs = (vec3*)posBuf.data();
+    vec3* nor_vecs = (vec3*)norBuf.data();
+    glm::mat2x4& bone = skel.bones[0];
+    vec3 bone_vec = bone[1] - bone[0];
+
+    // calculate u for each vertex
+    for (unsigned int i = 0; i < nverts; i++) {
+        glm::vec3 a = pos_vecs[i] - glm::vec3(bone[0]);
+        uBuf[i] = glm::dot(a, glm::normalize(bone_vec)) / glm::length(bone_vec);
+    }
+
+    // calculate bind positions and normals
+    for (int i = 0; i < nverts; i++) {
+        float u = uBuf[i];
+
+        vec4 uVec   = vec4(1, u, u*u, u*u*u);
+        vec4 uVec_  = vec4(0, 1, 2*u, 3*u*u);
+
+        // need original basis
+        // can precalculate at bone base and translate by u
+        vec3 pos_og   = bone * vec2(1 - u, u);
+
+        vec3 tan_og   = normalize(bone[1] - bone[0]);
+        vec3 bnorm_og = (tan_og.x == 0 && tan_og.z == 0)
+            ? normalize(vec3{-tan_og.y, tan_og.x, 0})
+            : normalize(vec3{-tan_og.z, 0, tan_og.x});
+        vec3 norm_og = normalize(cross(bnorm_og, tan_og));
+        mat4 basis_og = mat4(vec4(norm_og, 0), vec4(bnorm_og, 0), vec4(tan_og, 0), vec4(pos_og, 1));
+
+        // TODO: may need to change
+        mat4 basis_og_inv = inverse(basis_og);
+
+        // binding positions with respect to spline frame
+        bindings[i] = vec3{basis_og_inv * vec4(pos_vecs[i], 1)};
+        bind_norms[i] = vec3{basis_og_inv * vec4(nor_vecs[i], 0)};
+    }
+}
+
+void ShapeSkin::splineDeform(const Spline& s) {
+    int nverts = posBuf.size() / 3;
+    const mat4x3& G = s.G;
+    const mat4&   B = s.B;
+    mat4 GB = mat4(G * B);
+
+    // std::ofstream cyl_out("cylinder.csv");
+    // std::ofstream aPos_out("aPos.csv");
+
     for (int i = 0; i < nverts; i++) {
         float u = uBuf[i];
 
@@ -362,54 +398,15 @@ void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsig
 
         mat4 basis = mat4(vec4(norm, 0), vec4(bnorm, 0), vec4(tan, 0), origin);
 
-        // need original basis
-        // can precalculate at bone base and translate by u
-        // vec3 pos_og = (1 - u) * bone[0] + u * bone[1];
-        vec3 pos_og   = bone * vec2(1 - u, u);
-
-        vec3 tan_og   = normalize(bone[1] - bone[0]);
-        vec3 bnorm_og = (!(tan_og.x || tan_og.z))
-            ? normalize(vec3{-tan_og.y, tan_og.x, 0})
-            : normalize(vec3{-tan_og.z, 0, tan_og.x});
-        vec3 norm_og = normalize(cross(bnorm_og, tan_og));
-        mat4 basis_og = mat4(vec4(norm_og, 0), vec4(bnorm_og, 0), vec4(tan_og, 0), vec4(pos_og, 1));
-
-        // TODO: may need to change
-        mat4 basis_og_inv = inverse(basis_og);
-
-        // binding positions with respect to spline frame
-        bindings[i] = vec3{basis_og_inv * vec4(pos_vecs[i], 1)};
-        bind_norms[i] = vec3{basis_og_inv * vec4(nor_vecs[i], 0)};
-
         vec4 pos = basis * vec4{bindings[i], 1};
-        cyl_out << pos.x << ", " << pos.y << ", " << pos.z << std::endl;
-        aPos_out << bindings[i].x << ", " << bindings[i].y << ", " << bindings[i].z << std::endl;
+        // cyl_out << pos.x << ", " << pos.y << ", " << pos.z << std::endl;
+        // aPos_out << bindings[i].x << ", " << bindings[i].y << ", " << bindings[i].z << std::endl;
         points[i] = vec3(pos);
 
     }
-
-    // glBindBuffer(GL_ARRAY_BUFFER, posBufID);
-    // glBufferData(GL_ARRAY_BUFFER, bindings.size()*sizeof(float), &bindings[0], GL_STATIC_DRAW);
-
-    exportMesh("spline-cylinder.obj");
-}
-
-void ShapeSkin::calcSplinePos() {
+    // exportMesh("spline-cylinder.obj");
 
 }
-
-void ShapeSkin::exportMesh(const std::string& filename) {
-    std::ofstream fout(filename, std::ios_base::out);
-    if (fout.fail())    std::cerr << "can't open" << std::endl;
-
-    for (size_t v = 0; v < points.size(); v ++)
-        fout << "v " << points[v].x << ' ' << points[v].y << ' ' << points[v].z << std::endl;
-
-    for (size_t f = 0; f < elemBuf.size() - 2; f += 3)
-        fout << "f " << (elemBuf[f] + 1) << ' ' << (elemBuf[f + 1] + 1) << ' ' << (elemBuf[f + 2] + 1) << std::endl;
-}
-
-
 
 
 

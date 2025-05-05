@@ -136,6 +136,7 @@ void init() {
 
     // Generate cylinder
     cylinder.makeCylinder(20, 50, 10);
+    cylinder.bindSkin();
     cylinder.init();
 
     glfwSetTime(0.);

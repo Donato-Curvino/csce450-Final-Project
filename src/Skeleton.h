@@ -15,12 +15,6 @@ class Skeleton {
     // std::vector<glm::mat4> pose;
     std::vector<Spline> splines;
     std::vector<glm::mat2x4> bones;
-    // glm::mat4 spline_basis = {
-    //      0.0f,  1.0f,  0.0f,  0.0f,
-    //     -0.5f,  0.0f,  0.5f,  0.0f,
-    //      1.0f, -2.5f,  2.0f, -0.5f,
-    //     -0.5f,  1.5f, -1.5f,  0.5f
-    // };
 
   public:
     size_t numFrames() const { return frames.size(); }
