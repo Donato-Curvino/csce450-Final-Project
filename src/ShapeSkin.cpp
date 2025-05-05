@@ -347,28 +347,17 @@ void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsig
 
         vec4 uVec   = vec4(1, u, u*u, u*u*u);
         vec4 uVec_  = vec4(0, 1, 2*u, 3*u*u);
-        // vec4 uVec_2 = vec4(0, 0,   2,   6*u);
 
         // compute spline basis
         vec4 origin = GB * uVec;
         vec3 p_     = vec3(GB * uVec_);
-        // if (!(p_.x || p_.z))
-            // p_ += (u + 1e-15f >= 1 ? -1.f : 1.f) * vec3{GB * (1e-15f * uVec_)};
-        // vec3 p_2    = vec3(GB * uVec_2);
 
         vec3 tan = (p_ == vec3{0}) ? vec3{1, 0, 0} : normalize(p_);
-
-        // doesn't work if tan == {0,0,0}
-        // vec3 bnorm = (tan.y != 0)
-        //     ? normalize(vec3{-tan.z, 0, tan.x})   // project onto XZ plane
-        //     : (tan.z != 0)
-        //     ? normalize(vec3{-tan.y, tan.x, 0})   // project onto XY plane
-        //     : normalize(vec3{0, -tan.z, tan.y});  // project onto YZ plane
-        vec3 bnorm = (!(tan.x || tan.z))
-            ? normalize(vec3{-tan.y, tan.x, 0})
-            : normalize(vec3{-tan.z, 0, tan.x});
-
-        // if (p_2 == vec3{0})  p_2 = (tan.y == -1 || tan.y == 1) ? vec3{0, 1, 0} : vec3{0, 0, 1};   // inflection point
+        vec3 bnorm = (tan.x == 0 && tan.z == 0)
+            ? (u <= 0.5)
+                ? normalize(cross(G[2] - G[1], G[1] - G[0]))
+                : normalize(cross(G[3] - G[2], G[2] - G[1]))
+            : normalize(vec3(-tan.z, 0, tan.x));
         vec3 norm  = normalize(cross(bnorm, tan));
 
         mat4 basis = mat4(vec4(norm, 0), vec4(bnorm, 0), vec4(tan, 0), origin);
@@ -382,14 +371,11 @@ void ShapeSkin::makeCylinder(unsigned int resolution, unsigned int height, unsig
         vec3 bnorm_og = (!(tan_og.x || tan_og.z))
             ? normalize(vec3{-tan_og.y, tan_og.x, 0})
             : normalize(vec3{-tan_og.z, 0, tan_og.x});
-
         vec3 norm_og = normalize(cross(bnorm_og, tan_og));
         mat4 basis_og = mat4(vec4(norm_og, 0), vec4(bnorm_og, 0), vec4(tan_og, 0), vec4(pos_og, 1));
 
         // TODO: may need to change
-        // mat4 basis_og_inv = mat4(1);
         mat4 basis_og_inv = inverse(basis_og);
-        // basis_og_inv[3] = vec4(-vec3(pos_og), 1);
 
         // binding positions with respect to spline frame
         bindings[i] = vec3{basis_og_inv * vec4(pos_vecs[i], 1)};
