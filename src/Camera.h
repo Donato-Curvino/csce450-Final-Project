@@ -27,8 +27,8 @@ public:
 	void setScaleFactor(float f) { sfactor = f; };
 	void mouseClicked(float x, float y, bool shift, bool ctrl, bool alt);
 	void mouseMoved(float x, float y);
-	void applyProjectionMatrix(std::shared_ptr<MatrixStack> P) const;
-	void applyViewMatrix(std::shared_ptr<MatrixStack> MV) const;
+    void applyProjectionMatrix(MatrixStack& P) const;
+    void applyViewMatrix(MatrixStack& MV) const;
 	
 private:
 	float aspect;

@@ -231,7 +231,7 @@ void ShapeSkin::draw(int k) const {
     glUniformMatrix2x4fv(prog->getUniform("bone"), 1, GL_FALSE, (float*)&skel.bones[0]);
 
     // glUniformMatrix4x3fv(prog->getUniform("G"), 1, GL_FALSE, &G[0][0]);
-    glUniformMatrix4x3fv(prog->getUniform("G"), 1, GL_FALSE, (float*)&skel.splines[0].G[0][0]);
+    // glUniformMatrix4x3fv(prog->getUniform("G"), 1, GL_FALSE, (float*)&skel.splines[0].G[0][0]);
 	
 	// Draw
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elemBufID);

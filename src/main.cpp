@@ -24,12 +24,16 @@ using namespace std;
 GLFWwindow* window;
 GLuint gridID;
 GLuint gridVAO;
+GLuint cntl_ptsID;
+GLuint cntl_ptsVAO;
+vector<glm::vec4> cntl_points(5);
 string RESOURCE_DIR = "";
 bool keyToggles[256] = {false};
 
 shared_ptr<Camera> camera = NULL;
 shared_ptr<Program> prog;
 shared_ptr<Program> prog_simple;
+shared_ptr<Program> prog_pts;
 ShapeSkin cylinder;
 double t;
 double t0;
@@ -53,6 +57,21 @@ static void char_callback(GLFWwindow *window, unsigned int key) {
 }
 
 static void cursor_position_callback(GLFWwindow* window, double xmouse, double ymouse) {
+    // Get current window size.
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+    float aspect = (float)width/height;
+    glm::vec4 x;
+    x[0] = 2.0f * ((xmouse / width) - 0.5f)* aspect;
+    x[1] = 2.0f * (((height - ymouse) / height) - 0.5f);
+    x[2] = 0.0f;
+    x[3] = 1.0f;
+    MatrixStack P, MV;
+    camera->applyProjectionMatrix(P);
+    camera->applyViewMatrix(MV);
+
+    glm::inverse(MV.topMatrix()) * glm::inverse(P.topMatrix());
+
     int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
     if(state == GLFW_PRESS) {
         camera->mouseMoved(xmouse, ymouse);
@@ -70,6 +89,11 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         bool shift = mods & GLFW_MOD_SHIFT;
         bool ctrl  = mods & GLFW_MOD_CONTROL;
         bool alt   = mods & GLFW_MOD_ALT;
+
+        if (alt) {
+
+        }
+
         camera->mouseClicked(xmouse, ymouse, shift, ctrl, alt);
     }
 }
@@ -93,16 +117,30 @@ void init() {
     prog_simple->addUniform("MV");
     prog_simple->addUniform("P");
 
-    GLint vtx = prog_simple->getAttribute("vertex");
+    // GLint vtx = prog_simple->getAttribute("vertex");
     // Generate Vertex Array Object
     glGenVertexArrays(1, &gridVAO);                                 GL_ERR;
     glBindVertexArray(gridVAO);                                     GL_ERR;
     // Data Allocation
     glGenBuffers(1, &gridID);                                       GL_ERR;
     glBindBuffer(GL_ARRAY_BUFFER, gridID);                          GL_ERR;
-    glVertexAttribPointer(vtx, 3, GL_FLOAT, GL_FALSE, 0, nullptr);  GL_ERR;
-    glEnableVertexAttribArray(vtx);                                 GL_ERR;
+    // glVertexAttribPointer(vtx, 3, GL_FLOAT, GL_FALSE, 0, nullptr);  GL_ERR;
+    // glEnableVertexAttribArray(vtx);                                 GL_ERR;
     glBindVertexArray(0);                                           GL_ERR;
+
+    glEnable(GL_PROGRAM_POINT_SIZE);
+    prog_pts = make_shared<Program>();
+    prog_pts->setShaderNames(RESOURCE_DIR + "point_vert.glsl", RESOURCE_DIR + "simple_frag.glsl");
+    prog_pts->setVerbose(true);
+    prog_pts->init();
+    prog_pts->addAttribute("point");
+    prog_pts->addUniform("MV");
+    prog_pts->addUniform("P");
+    glGenVertexArrays(1, &cntl_ptsVAO);
+    glBindVertexArray(cntl_ptsVAO);
+    glGenBuffers(1, &cntl_ptsID);
+    glBindBuffer(GL_ARRAY_BUFFER, cntl_ptsID);
+    glBindVertexArray(0);
 
     prog = make_shared<Program>();
     prog->setVerbose(true);
@@ -138,6 +176,13 @@ void init() {
     cylinder.makeCylinder(20, 50, 10);
     cylinder.bindSkin();
     cylinder.init();
+
+    spline.G = {
+        glm::vec3{-25,  0, 0},
+        glm::vec3{-25, 50, 0},
+        glm::vec3{ 25, 50, 0},
+        glm::vec3{ 25,  0, 0}
+    };
 
     glfwSetTime(0.);
     GLSL::checkError(GET_FILE_LINE);
@@ -178,9 +223,9 @@ void render() {
 
     // Apply camera transforms
     P->pushMatrix();
-    camera->applyProjectionMatrix(P);
+    camera->applyProjectionMatrix(*P);
     MV->pushMatrix();
-    camera->applyViewMatrix(MV);
+    camera->applyViewMatrix(*MV);
 
     // Draw grid
     static vector<glm::vec3> grid;
@@ -224,14 +269,35 @@ void render() {
     glUniform4f(prog->getUniform("kd"), 0.0f, 0.0f, 0.3f, 1.0f);                        GL_ERR;
     glUniform1f(prog->getUniform("s"), 200.0f);                                         GL_ERR;
     glUniform3f(prog->getUniform("lightPos"), 1, 1, -1);                                GL_ERR;
+    glUniformMatrix4x3fv(prog->getUniform("G"), 1, GL_FALSE, (float*)&spline.G[0][0]);
     cylinder.setProgram(prog);
     cylinder.draw(0);
     prog->unbind();
 
-    prog_simple->bind();
+    cntl_points = {
+        glm::vec4(spline.G[0], 0),
+        glm::vec4(spline.G[1], 0),
+        glm::vec4(spline.G[2], 0),
+        glm::vec4(spline.G[3], 0),
+        glm::vec4(spline.G[0], 1),
+    };
+
+    prog_pts->bind();
     glClear(GL_DEPTH_BUFFER_BIT);
     // cylinder.getSpline(0).draw();
-    prog_simple->unbind();
+    int a_pts = prog_pts->getAttribute("point");
+    glUniformMatrix4fv(prog_pts->getUniform("P"),  1, GL_FALSE, (float*)&P->topMatrix());   GL_ERR;
+    glUniformMatrix4fv(prog_pts->getUniform("MV"), 1, GL_FALSE, (float*)&MV->topMatrix());  GL_ERR;
+    glEnableVertexAttribArray(a_pts);                                     GL_ERR;
+    glBindBuffer(GL_ARRAY_BUFFER, cntl_ptsID);                            GL_ERR;
+    glBufferData(GL_ARRAY_BUFFER, cntl_points.size() * sizeof(glm::vec4), cntl_points.data(), GL_STATIC_DRAW);    GL_ERR;
+    glBindVertexArray(cntl_ptsVAO);                                       GL_ERR;
+    glVertexAttribPointer(a_pts, 4, GL_FLOAT, GL_FALSE, 0, nullptr);      GL_ERR;
+    glDrawArrays(GL_POINTS, 0, cntl_points.size());                       GL_ERR;
+    glBindBuffer(GL_ARRAY_BUFFER, 0);                                     GL_ERR;
+    glDisableVertexAttribArray(a_pts);                                    GL_ERR;
+    prog_pts->unbind();
+
     GLSL::checkError(GET_FILE_LINE);
 }
 

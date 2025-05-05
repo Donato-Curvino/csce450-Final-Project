@@ -54,15 +54,15 @@ void Camera::mouseMoved(float x, float y)
 	mousePrev = mouseCurr;
 }
 
-void Camera::applyProjectionMatrix(std::shared_ptr<MatrixStack> P) const
+void Camera::applyProjectionMatrix(MatrixStack& P) const
 {
 	// Modify provided MatrixStack
-	P->multMatrix(glm::perspective(fovy, aspect, znear, zfar));
+    P.multMatrix(glm::perspective(fovy, aspect, znear, zfar));
 }
 
-void Camera::applyViewMatrix(std::shared_ptr<MatrixStack> MV) const
+void Camera::applyViewMatrix(MatrixStack& MV) const
 {
-	MV->translate(translations);
-	MV->rotate(rotations.y, glm::vec3(1.0f, 0.0f, 0.0f));
-	MV->rotate(rotations.x, glm::vec3(0.0f, 1.0f, 0.0f));
+    MV.translate(translations);
+    MV.rotate(rotations.y, glm::vec3(1.0f, 0.0f, 0.0f));
+    MV.rotate(rotations.x, glm::vec3(0.0f, 1.0f, 0.0f));
 }
